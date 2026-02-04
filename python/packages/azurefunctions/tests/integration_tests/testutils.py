@@ -307,7 +307,9 @@ def start_function_app(sample_path: Path, port: int) -> tuple[subprocess.Popen, 
     # use the task hub name to separate orchestration state.
     env["TASKHUB_NAME"] = f"test{uuid.uuid4().hex[:8]}"
 
-    log_file = tempfile.TemporaryFile()  # noqa: SIM115
+    # The log_file handle is returned to the caller and must remain open beyond this function,
+    # so we intentionally do not use a context manager here.  # noqa: SIM115
+    log_file = tempfile.TemporaryFile()
 
     # On Windows, use CREATE_NEW_PROCESS_GROUP to allow proper termination
     # shell=True only on Windows to handle PATH resolution
