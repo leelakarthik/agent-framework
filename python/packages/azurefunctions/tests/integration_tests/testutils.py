@@ -9,7 +9,6 @@ import os
 import socket
 import subprocess
 import sys
-import tempfile
 import time
 import uuid
 from contextlib import suppress
@@ -295,11 +294,11 @@ def load_and_validate_env() -> None:
         )
 
 
-def start_function_app(sample_path: Path, port: int) -> tuple[subprocess.Popen, Any]:
+def start_function_app(sample_path: Path, port: int) -> subprocess.Popen:
     """
     Start a function app in the specified sample directory.
 
-    Returns the subprocess.Popen object and the log file handle.
+    Returns the subprocess.Popen object for the running process.
     """
     env = os.environ.copy()
     # Use a unique TASKHUB_NAME for each test run to ensure test isolation.
@@ -307,32 +306,18 @@ def start_function_app(sample_path: Path, port: int) -> tuple[subprocess.Popen, 
     # use the task hub name to separate orchestration state.
     env["TASKHUB_NAME"] = f"test{uuid.uuid4().hex[:8]}"
 
-    # The log_file handle is returned to the caller and must remain open beyond this function,
-    # so we intentionally do not use a context manager here.  # noqa: SIM115
-    log_file = tempfile.TemporaryFile()
-
     # On Windows, use CREATE_NEW_PROCESS_GROUP to allow proper termination
     # shell=True only on Windows to handle PATH resolution
     if sys.platform == "win32":
-        process = subprocess.Popen(
-            ["func", "start", "--verbose", "--port", str(port)],
+        return subprocess.Popen(
+            ["func", "start", "--port", str(port)],
             cwd=str(sample_path),
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
             shell=True,
             env=env,
-            stdout=log_file,
-            stderr=subprocess.STDOUT,
         )
-        return process, log_file
     # On Unix, don't use shell=True to avoid shell wrapper issues
-    process = subprocess.Popen(
-        ["func", "start", "--verbose", "--port", str(port)],
-        cwd=str(sample_path),
-        env=env,
-        stdout=log_file,
-        stderr=subprocess.STDOUT,
-    )
-    return process, log_file
+    return subprocess.Popen(["func", "start", "--port", str(port)], cwd=str(sample_path), env=env)
 
 
 def wait_for_function_app_ready(func_process: subprocess.Popen, port: int, max_wait: int = 60) -> None:
